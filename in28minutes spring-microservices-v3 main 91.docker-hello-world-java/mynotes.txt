@@ -1,8 +1,49 @@
-the program has been run fine
 
-# creation of dockerfile
+1)navigate to the cmd of the docker file and do
+    Dockerfile:
+        FROM openjdk:21-jdk-slim
+        WORKDIR /kaarthik
+        COPY hello-world-java.jar /kaarthik/app.jar
+        EXPOSE 3000
+        ENTRYPOINT ["java","-jar","/kaarthik/app.jar"]
 
-# create jar
+    in this WORKDIR /kaarthik is inside the container_path i'm working on
+        and by ENTRYPOINT, i'm running the container_path i'm working on
+
+    in the DOckerfile:
+        i use RUN to run the commands inside the container
+        i use ENTRYPOINT to run the container itself (i.e the main part)
+
+    docker build -t container_name .
+
+        now this container exists in our system (not yet pushed to the docker repository)
+
+    docker run -d -p 5000:5000 image_name
+
+        now this will run the container in the detached mode (-d)
+        i can access the container using my localhost (hostport:container_port) mapping
+
+    docker stop alpha
+
+        alpha is the container id , i get from the docker -ps
+        it is not the image name
+        conversly, i can set the container name when i'm runnning!
+            docker run -d -p 5000:5000 --name my_container alpha
+    interesting case:
+        if the app.prop file has x
+        and in the Dockerfile if i expose y instead via(EXPOSE 8081)
+
+        during the run host_port:x only works, host_port:y doesnt work!
+
+            only the app.properties take preference, the EXPOSE in Dockerfile is just a documentation hint
+
+
+
+
+2) but wrong approach, i should build the jar file inside the docker itself
+    in the earlier approach, i build the jar on my own and then i just exported the JAR file
+    so here, i will be trying to build the JAR file in my system itself
+
 
 
 
