@@ -1,4 +1,9 @@
-
+cleaning up:
+    docker system prune -a --volumes -f //removing all images container etc.
+    Remove All Stopped Containers and Unused Networks, Volumes, and Images:
+        docker system prune -a -f --volumes
+    Remove All Docker Images:
+        docker image prune -a -f
 1)navigate to the cmd of the docker file and do
     Dockerfile:
         FROM openjdk:21-jdk-slim
@@ -43,6 +48,46 @@
 2) but wrong approach, i should build the jar file inside the docker itself
     in the earlier approach, i build the jar on my own and then i just exported the JAR file
     so here, i will be trying to build the JAR file in my system itself
+
+    # this below example didnt work properly
+
+        FROM jelastic/maven:3.9.5-openjdk-21 AS buildd
+        WORKDIR /kaarthik
+        COPY . /kaarthik
+        # the above command copies all the files from app to /kaarthik in container
+        RUN mvn -f /kaarthik/pom.xml clean package
+
+        FROM openjdk:21-jdk-slim
+        EXPOSE 5000
+        COPY --from=buildd /kaarthik/*.jar app.jar
+        # instead of copying from our java app, i copy it from the BUILD stage
+        ENTRYPOINT [ "sh", "-c", "java -jar /app.jar" ]
+
+    error i got was : unable to find app.jar
+     corrected code:
+         # Build stage
+         FROM jelastic/maven:3.9.5-openjdk-21 AS buildd
+         WORKDIR /kaarthik
+         COPY . /kaarthik
+         RUN mvn -f /kaarthik/pom.xml clean package
+
+         # Find the jar file in the build stage
+         RUN find /kaarthik -name "*.jar" -exec cp {} /kaarthik/app.jar \;
+
+         # Runtime stage
+         FROM openjdk:21-jdk-slim
+         EXPOSE 5000
+
+         # Copy the found jar file
+         COPY --from=buildd /kaarthik/app.jar /app.jar
+
+         # Run the application
+         ENTRYPOINT ["sh", "-c", "java -jar /app.jar"]
+
+        now i'm finfing and moving the .jar file before i run ;)
+    TIP: VOLUME is a keyword i can use for creating special memories shared between containers
+
+
 
 
 
