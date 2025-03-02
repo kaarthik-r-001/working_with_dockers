@@ -86,6 +86,111 @@ cleaning up:
 
         now i'm finfing and moving the .jar file before i run ;)
     TIP: VOLUME is a keyword i can use for creating special memories shared between containers
+3) layer caching feature of docker:
+    put the frequently used lines first, so that they can be reused instead of building again and again
+
+    comes into play when i'm reusing the same Dockerfile to build different images with small changes in the functionalities
+4) Maven
+    helps create jar for spring boot app
+    helps run sbp
+    helps to create a container image
+    commands:
+        mvn spring-boot:run
+        mvn spring-boot:start (non blocking running of app)
+        " ":stop
+        " ":build-image
+        " ":repackage (repackang as
+5) Distributd Tracing
+
+    instead of using a java project, i'm doing it via docker
+
+    docker run -p 9411:9411 openzipkin/zipkin:2.23
+    fjfj
+        notice i didnt use -d, because i want it to run in the terminal
+    OpenTelemetry :  collection of tools , APIs, SDKs to export and analyze
+
+    this is where Distributed tracing comes into pucture - it helps me monitor and log eveything
+
+    setup:
+        <!-- SB2  : Sleuth (Tracing Configuration)
+                    > Brave (Tracer library)
+                    > Zipkin
+        -->
+
+        <!--
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-sleuth</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-sleuth-brave</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-sleuth-zipkin</artifactId>
+        </dependency>
+        -->
+
+        <!-- SB3 :  Micrometer
+                    > OpenTelemetry
+                    > Zipkin
+        -->
+
+        <!-- Micrometer - Vendor-neutral application observability facade.
+            Instrument your JVM-based application code without vendor lock-in.
+            Observation (Metrics & Logs) + Tracing.
+        -->
+
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-observation</artifactId>
+        </dependency>
+
+        <!-- OPTION 1: Open Telemetry as Bridge (RECOMMENDED) -->
+        <!-- Open Telemetry
+            - Simplified Observability (metrics, logs, and traces) -->
+
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-tracing-bridge-otel</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-exporter-zipkin</artifactId>
+        </dependency>
+
+
+        <!-- OPTION 2: Brave as Bridge -->
+
+        <!--
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-tracing-bridge-brave</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>io.zipkin.reporter2</groupId
+            <artifactId>zipkin-reporter-brave</artifactId>
+        </dependency>
+        -->
+    it depends on whether i am uing SB2 or SB3
+    and it also depends on whether i want just tracing or all metrics
+    to add in app.prop in currency-exchange:
+        management.tracing.sampling.probability=1.0
+        logging.pattern.level=%5p [${spring.application.name:},%X{traceId:-},%X{spanId:-}]
+    micrometer assings an ID to the request so that it makes it easier for me to find it
+
+    now add the same in pom.xml and app.properties for the currency-conversion and api gateway
+
+	tips:
+		in sb3, currency-conversion-feign goes to currency-exchange, but it doesnt get registered
+		so i have to add an additional dependency in pom.xml of currency-conversion
+		<dependency>
+			<groupId>io.github.openfeign</groupId>
+			<artifactId>feign-micrometer</artifactId>
+		</dependency>
 
 
 
