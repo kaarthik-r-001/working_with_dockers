@@ -1,0 +1,199 @@
+now i'm trying to dockerize all the microservices that i have
+
+doing it via maven instead of Dockerfile
+
+1) add the following to all the pom.xml of the project files
+		<build>
+		<plugins>
+			<plugin>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-maven-plugin</artifactId>
+				<configuration>
+					<image>
+						<name>mmv2-${project.artifactId}:${project.version}</name>
+					</image>
+					<pullPolicy>IF_NOT_PRESENT</pullPolicy>
+				</configuration>
+			</plugin>  
+		</plugins>
+	</build>
+
+	since i'm using java 21 in project but i have java 17 in my system
+	i'm manually using the jdk 21 of intellij in my users/kaarthik.jdk and setting them as temporary path variable while trying to package it in cmd
+	so basically running the below commands
+		F:\working_with_currency_microservices\currency-exchange-service>set JAVA_HOME=C:\Users\kaarthik\.jdks\corretto-21.0.6
+
+		F:\working_with_currency_microservices\currency-exchange-service>set PATH=%JAVA_HOME%\bin;%PATH%
+
+		F:\working_with_currency_microservices\currency-exchange-service>mvn spring-boot:build-image -DskipTest
+	but why two other images paketobuildpacks/builder-jammy-java-tiny and paketobuildpacks/run-jammy-tiny created?
+	running the 
+		F:\working_with_dockers>docker images
+					REPOSITORY                                 TAG              IMAGE ID       CREATED        SIZE
+					kaarthik_ram_check                         latest           e3bcfb69c54c   7 hours ago    726MB
+					paketobuildpacks/run-jammy-tiny            latest           0c5ac79d549c   2 months ago   38.3MB
+					openzipkin/zipkin                          2.23             947ca34f00ce   2 years ago    260MB
+					mmv2-currency-exchange-service             0.0.1-SNAPSHOT   78aa87583134   45 years ago   658MB
+					paketobuildpacks/builder-jammy-java-tiny   latest           c5c53c656d91   45 years ago   998MB
+		F:\working_with_dockers>docker run -d -p 8085:8085 mmv2-currency-exchange-service:0.0.1-SNAPSHOT 
+			this works!, i can access localhost:8085
+
+		but i cant use eureka and use it with other microservices
+2) Using docker compose
+	i want to run multiple container Docker application
+	basically, i'll create the docker images of the microservices individually
+	i will run all those images at same time using docker compose :)
+	example:
+		version : '3.7'
+		 services:
+ 		  currency-exchange:
+  		   image: mmv2-currency-exchange-service:0.0.1-SNAPSHOT
+  			mem_limit: 700m
+		    ports:
+		     - "8085:8085"
+	and this should be in the directory as the directory(folder of service of which image was created)
+		COMMAND : docker-compose up
+		//run this in the directory with the docker-compose.yml and the docker
+	creating network:
+			what's the point of it?
+	i use the name currency-exchange because that is how i want my service to be called inside my compose environment
+3) getting the naming -server up and running
+			version : '3.7'
+			services:
+			currency-exchange:
+			image: mmv2-currency-exchange-service:0.0.1-SNAPSHOT
+			mem_limit: 700m
+			ports:
+			- "8085:8085"
+			networks:
+				- currency-network
+			depends_on:
+			- naming-server
+			
+			naming-server:
+				image: mmv2-naming-server:0.0.1-SNAPSHOT
+				mem_limit: 700m
+				ports:
+				- "8761:8761"
+				networks:
+					- currency-network
+
+			networks:
+			currency-network:
+		ignore the spacing!
+		we use depends_on because currency-exchange depends on naming server
+			The depends_on key in Docker Compose defines service dependencies—it ensures that a container starts after another one.
+			currency-exchange will start after naming-server starts.
+	but doesnt work because currency exchange uses: 
+		eureka.client.serviceUrl.defaultZone=http://localhost:8761/eureka
+		but localhost inside this will refer to the localhost of the currency-exchange container
+	so i will configure the environment variable inside the currency_exchange in docker-compose
+
+	currency-exchange:
+	 environment:
+	  EUREKA.CLIENT.SERVICEURL.DEFAULTZONE=http://naming-server:8761/eureka
+4) usage of networks	
+	How It Works in Your Case
+		The currency-network is created.
+		Both currency-exchange and naming-server are attached to this network.
+		The currency-exchange service can reach naming-server using http://naming-server:8761/eureka (instead of an IP address).
+	if no network, then i would have to manually call the containers with ip addresses instead of the container name (like naming-server here)
+
+5)similarly for currency conversion service as container	
+
+version : '3.7'
+services:
+ currency-exchange:
+  image: mmv2-currency-exchange-service:0.0.1-SNAPSHOT
+  mem_limit: 700m
+  ports:
+   - "8085:8085"
+  networks:
+    - currency-network
+  depends_on:
+   - naming-server
+  environment:
+   - EUREKA.CLIENT.SERVICEURL.DEFAULTZONE=http://naming-server:8761/eureka
+
+ naming-server:
+  image: mmv2-naming-server:0.0.1-SNAPSHOT
+  mem_limit: 700m
+  ports:
+   - "8761:8761"
+  networks:
+    - currency-network
+ currency-conversion:
+  image: mmv2-currency-conversion-service:0.0.1-SNAPSHOT
+  mem_limit: 700m
+  ports:
+   - "8082:8082"
+  networks:
+    - currency-network
+  depends_on:
+   - naming-server
+  environment:
+   - EUREKA.CLIENT.SERVICEURL.DEFAULTZONE=http://naming-server:8761/eureka
+
+networks:
+ currency-network:
+  
+works fine!, even the feign part works since it's calling the microservice by name currency-exchange
+
+6) running with api gateway
+
+version : '3.7'
+services:
+ currency-exchange:
+  image: mmv2-currency-exchange-service:0.0.1-SNAPSHOT
+  mem_limit: 700m
+  ports:
+   - "8085:8085"
+  networks:
+    - currency-network
+  depends_on:
+   - naming-server
+  environment:
+   - EUREKA.CLIENT.SERVICEURL.DEFAULTZONE=http://naming-server:8761/eureka
+
+ naming-server:
+  image: mmv2-naming-server:0.0.1-SNAPSHOT
+  mem_limit: 700m
+  ports:
+   - "8761:8761"
+  networks:
+    - currency-network
+ currency-conversion:
+  image: mmv2-currency-conversion-service:0.0.1-SNAPSHOT
+  mem_limit: 700m
+  ports:
+   - "8082:8082"
+  networks:
+    - currency-network
+  depends_on:
+   - naming-server
+  environment:
+   - EUREKA.CLIENT.SERVICEURL.DEFAULTZONE=http://naming-server:8761/eureka
+ api-gateway:
+  image: mmv2-api-gateway:0.0.1-SNAPSHOT
+  mem_limit: 700m
+  ports:
+   - "8765:8765"
+  networks:
+    - currency-network
+  depends_on:
+   - naming-server
+  environment:
+   - EUREKA.CLIENT.SERVICEURL.DEFAULTZONE=http://naming-server:8761/eureka
+
+  
+
+networks:
+ currency-network:
+  
+7) adding zipkin
+	first do docker run -p 9411:9411 openzipkin/zipkin:2.23
+
+
+
+
+  
